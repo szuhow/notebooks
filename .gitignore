@@ -1,0 +1,14 @@
+*.png
+*.jpg
+venv/
+__pycache__/
+.ipynb_checkpoints/
+*.pyc
+.DS_Store
+.env
+.idea/
+.vscode/
+logs/
+arcade_coco_detection/
+arcade_coco_dataset_seg/
+*.npz
