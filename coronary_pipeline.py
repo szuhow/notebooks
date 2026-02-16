@@ -257,6 +257,24 @@ class SideClassificationDataset(Dataset):
             if fname:
                 self.samples.append((os.path.join(images_dir, fname), label))
 
+        # ── Walidacja: sprawdź czy kategorie zawierają rozpoznawalne segmenty ──
+        all_cat_names = set(cat_id_to_name.values())
+        resolved_any = any(self._resolve_segment_name(n) is not None for n in all_cat_names)
+        if not resolved_any:
+            warnings.warn(
+                f"⚠️  SideClassificationDataset: żadna kategoria COCO ({all_cat_names}) "
+                f"nie pasuje do znanych segmentów wieńcowych. "
+                f"Upewnij się, że DATASET_DIR wskazuje na dataset MULTICLASS "
+                f"(np. arcade_coco_detection2), a nie BINARY (np. arcade_coco_binary). "
+                f"Plik: {coco_json}"
+            )
+        if len(self.samples) == 0 and len(coco['annotations']) > 0:
+            warnings.warn(
+                f"⚠️  SideClassificationDataset: 0 próbek wygenerowanych z {len(coco['annotations'])} adnotacji. "
+                f"Kategorie w datasecie: {all_cat_names}. "
+                f"Oczekiwane nazwy segmentów: {sorted(SEGMENT_NAME_TO_CLASS_ID.keys())}"
+            )
+
         self.transform = transform or transforms.Compose([
             transforms.Resize((224, 224)),
             transforms.ToTensor(),
@@ -309,6 +327,15 @@ def train_side_classifier(
     print("=" * 60)
 
     train_ds = SideClassificationDataset(train_json, train_images)
+
+    if len(train_ds) == 0:
+        raise ValueError(
+            f"❌ SideClassificationDataset ma 0 próbek — nie można trenować klasyfikatora.\n"
+            f"   Sprawdź, czy DATASET_DIR wskazuje na dataset MULTICLASS z adnotacjami segmentów (np. arcade_coco_detection2),\n"
+            f"   a nie dataset BINARY z jedną kategorią 'vessel' (np. arcade_coco_binary).\n"
+            f"   Podany plik: {train_json}"
+        )
+
     train_loader = DataLoader(
         train_ds, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True
     )
